@@ -160,13 +160,13 @@ decides what goes on the wire, so a typo should be an error rather than a guess.
 | | |
 |---|---|
 | `DT` | `dt` | Digitakt |
+| `DN` | `dn` | Digitone |
 
 **Known, not implemented** (no instrument id is known, so there is no request to send)
 
 | | |
 |---|---|
 | `DTII` | `dtii` | `"Digitakt II"` |
-| `DN` | `dn` | `Digitone` |
 | `DNII` | `dnii` | `"Digitone II"` |
 | `ST` | `st` | `Syntakt` |
 | `AR` | `ar` | `"Analog Rytm"` |

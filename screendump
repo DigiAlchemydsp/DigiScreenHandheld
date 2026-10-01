@@ -75,7 +75,12 @@ building from source:
 #   00 20 3C          Elektron manufacturer id
 #   <id0> <id1>       instrument id -- see INSTRUMENTS below. Whether this is
 #                     product + unit or one 16-bit id is not established, so it
-#                     is carried as two opaque bytes per instrument.
+#                     is carried as two opaque bytes per instrument. What IS
+#                     established: the Digitakt and the Digitone both answer the
+#                     screenshot RPC on (0x10, 0x00), and both ignore a request
+#                     addressed elsewhere. It looks like a shared protocol id
+#                     rather than a per-product one -- a new instrument should be
+#                     tried on (0x10, 0x00) first.
 #
 #   body = msgId:u16be  replyTo:u16be  cmd:u8  payload
 #     cmd 0x04  ScreenshotRequest    empty payload  -> a 13 byte frame
@@ -165,7 +170,7 @@ class Instrument:
 INSTRUMENTS = [
     Instrument("Digitakt",      "DT",   ident=(0x10, 0x00), width=128, height=64),
     Instrument("Digitakt II",   "DTII"),
-    Instrument("Digitone",      "DN"),
+    Instrument("Digitone",      "DN",   ident=(0x10, 0x00), width=128, height=64),
     Instrument("Digitone II",   "DNII"),
     Instrument("Syntakt",       "ST"),
     Instrument("Analog Rytm",   "AR"),
