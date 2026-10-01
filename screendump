@@ -7,6 +7,9 @@
     screendump --from-file frame.syx --instrument dt --blocks
 
     screendump -x --framerate 30                       live view, Ctrl+C stops
+    screendump -x --framerate 30                       ... a TUI: q quits, m mode,
+                                                       i invert, f flip, p pause,
+                                                       s save frame, h help
     screendump -x --framerate 30 --save-mid cap.mid    record while watching
     screendump --from-file cap.mid --save-gif out.gif  turn it into a GIF
 
@@ -1165,8 +1168,13 @@ def open_ports(out_spec, in_spec, verbose=False):
     return midi_in, midi_out
 
 
-def request_frame(midi_in, midi_out, request, timeout_s):
-    """One request, one complete reply. Returns (raw, seconds) or (None, None)."""
+def request_frame(midi_in, midi_out, request, timeout_s, wait_cb=None):
+    """One request, one complete reply. Returns (raw, seconds) or (None, None).
+
+    wait_cb() is called while the reply is pending, so the caller can stay
+    responsive to other input -- the TUI reads keys here. Returning False gives
+    up on this reply, as if it timed out.
+    """
     while midi_in.get_message() is not None:     # drop anything already queued
         pass
     buf = bytearray()
@@ -1176,6 +1184,8 @@ def request_frame(midi_in, midi_out, request, timeout_s):
     while time.monotonic() < deadline:
         msg = midi_in.get_message()
         if msg is None:
+            if wait_cb is not None and not wait_cb():
+                return None, None
             time.sleep(0.0005)
             continue
         data = msg[0]
@@ -1212,22 +1222,191 @@ def capture(instrument, out_spec, in_spec, timeout_s, repeat=1, verbose=False):
     return replies, timings
 
 
+# -------------------------------------------------------------------- TUI
+#
+# The live view is a TUI when the terminal is interactive: alternate screen,
+# a key handler, a status line, and one keypress's worth of input. Zero
+# dependencies -- ANSI escapes for the drawing, msvcrt on Windows and
+# termios + select on the others for the keys. Only when stdout is a terminal;
+# piped streaming (a recording without watching) behaves exactly as before.
+
+MODES = ("braille", "blocks", "ascii")
+
+KEYS_HELP = (
+    "  m / tab   render mode: braille, blocks, ascii",
+    "  i         invert lit and unlit",
+    "  f         flip vertically",
+    "  p / space pause / resume the stream",
+    "  s         save the current frame as a .syx",
+    "  h / ?     toggle this help",
+    "  q / esc   quit (Ctrl+C works too)",
+)
+
+
+class LiveUI:
+    """The interactive side of the live view: keys, render state, save.
+
+    The render state lives here rather than in the args, because the TUI
+    changes it while streaming. The initial mode and invert/flip come from the
+    command line, so the TUI opens exactly where a one-shot screenshot would.
+    """
+
+    def __init__(self, args, out=None):
+        self.out = out if out is not None else sys.stdout
+        self.mode = "blocks" if args.blocks else ("ascii" if args.ascii else "braille")
+        self._mode_index = MODES.index(self.mode)
+        self.invert = args.invert
+        self.flip = args.flip
+        self.paused = False
+        self.help = False
+        self.quit = False
+        self.notice = ""
+        self.last_raw = None
+        self.save_pending = False
+
+    def render(self, grid):
+        if self.mode == "ascii":
+            return render_ascii(grid, invert=self.invert)
+        if self.mode == "blocks":
+            return render_blocks(grid, invert=self.invert)
+        return render_braille(grid, invert=self.invert)
+
+    def handle(self, key):
+        """Apply one keypress. Keys that end the session set self.quit."""
+        if key in ("q", "\x1b", "\x03"):
+            self.quit = True
+        elif key in ("m", "\t"):
+            self._mode_index = (self._mode_index + 1) % len(MODES)
+            self.mode = MODES[self._mode_index]
+            self.notice = f"mode: {self.mode}"
+        elif key == "i":
+            self.invert = not self.invert
+            self.notice = "invert: on" if self.invert else "invert: off"
+        elif key == "f":
+            self.flip = not self.flip
+            self.notice = "flip: on" if self.flip else "flip: off"
+        elif key in ("p", " "):
+            self.paused = not self.paused
+            self.notice = "paused" if self.paused else "resumed"
+        elif key == "s":
+            self.save_pending = True
+        elif key in ("h", "?"):
+            self.help = not self.help
+
+    def save_frame(self):
+        """Write the most recent frame, if there is one. Sets self.notice."""
+        self.save_pending = False
+        if self.last_raw is None:
+            self.notice = "no frame yet -- nothing to save"
+            return
+        base = f"screendump-{time.strftime('%Y%m%d-%H%M%S')}"
+        path = f"{base}.syx"
+        n = 1
+        while os.path.exists(path):
+            path = f"{base}-{n}.syx"
+            n += 1
+        with open(path, "wb") as fh:
+            fh.write(self.last_raw)
+        self.notice = f"saved {path}"
+
+    def serve_keys(self):
+        key = _read_key()
+        if key is not None:
+            self.handle(key)
+
+    def wait(self):
+        """Called while a request is in flight; False aborts that request."""
+        self.serve_keys()
+        return not self.quit
+
+
+def _raw_stdin():
+    """Put stdin in cbreak on POSIX; on Windows msvcrt needs no help."""
+    if os.name == "nt":
+        return None
+    try:
+        import termios
+        import tty
+        fd = sys.stdin.fileno()
+        old = termios.tcgetattr(fd)
+        tty.setcbreak(fd)
+        return old
+    except Exception:
+        return None
+
+
+def _restore_stdin(old):
+    if old is None:
+        return
+    try:
+        import termios
+        termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, old)
+    except Exception:
+        pass
+
+
+def _read_key():
+    """The keypress waiting right now, or None. Never blocks.
+
+    Windows: msvcrt, which reads console input without echo or buffering.
+    POSIX: stdin is in cbreak, and select says when a byte is ready. Arrow and
+    other extended keys arrive as a scancode after a lead byte; they are
+    consumed and ignored -- the TUI has no use for them.
+    """
+    if os.name == "nt":
+        import msvcrt
+        if not msvcrt.kbhit():
+            return None
+        ch = msvcrt.getwch()
+        if ch in ("\x00", "\xe0"):
+            try:
+                msvcrt.getwch()
+            except Exception:
+                pass
+            return None
+        return ch
+    import select
+    ready, _, _ = select.select([sys.stdin], [], [], 0.0)
+    if not ready:
+        return None
+    ch = sys.stdin.read(1)
+    return ch or None
+
+
 def _enable_ansi_on_windows():
+    """On Windows, enable ANSI escapes and UTF-8 output.
+
+    Two halves. The console mode change is what lets the escape sequences work
+    at all. The UTF-8 half exists because a Windows console starts in cp1252
+    / codepage 437, and neither braille nor half-blocks can be encoded there --
+    every render would crash with UnicodeEncodeError. Setting the console to
+    codepage 65001 and the Python streams to utf-8 fixes both the console and
+    any redirected output.
+    """
     if os.name != "nt":
         return
     try:
         import ctypes
         kernel = ctypes.windll.kernel32
         kernel.SetConsoleMode(kernel.GetStdHandle(-11), 7)
+        kernel.SetConsoleOutputCP(65001)
     except Exception:
         pass
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
 
 
 def stream(instrument, args, recorder=None):
     """Live view: poll, redraw in place, and log the frames that differ.
 
-    Ctrl+C stops. The last frame is given its duration at that point, so a
-    recording made here is complete rather than truncated.
+    On an interactive terminal this is the TUI: q quits, m/i/f change the
+    render, p pauses, s saves the current frame, h lists the keys. On a piped
+    stdout (recording without watching) it stays silent, exactly as before.
+    Ctrl+C stops either way. The last frame is given its duration at that
+    point, so a recording made here is complete rather than truncated.
 
     ⭐ When a recorder is passed, the capture's zero is the first AUDIO SAMPLE,
     not the first poll: the stream is started and waited on before the loop
@@ -1253,30 +1432,54 @@ def stream(instrument, args, recorder=None):
     # is exactly as it was -- the commands that started it still visible.
     # Clearing the normal screen instead overwrites whatever was there, and it
     # cannot be scrolled back to.
+    ui = LiveUI(args) if drawing else None
+    termios_old = _raw_stdin() if drawing else None
     if drawing:
         sys.stdout.write("\033[?1049h\033[?25l")
     try:
-        while True:
+        while not (ui and ui.quit):
             tick = time.monotonic()
-            raw, _ = request_frame(midi_in, midi_out, request, args.timeout)
-            if raw is None:
-                misses += 1
-            else:
-                # decode every poll -- cheap, and the pixels are what decides
-                # whether this frame is new (the SysEx header never repeats)
-                w, h, px = parse_or_die(raw, instrument)
-                now_ms = (time.monotonic() - t0) * 1000.0
-                if log.add(raw, px, now_ms) and drawing:
-                    picture = render(unpack(px, w, h, args.flip), args)
+            if ui is not None:
+                ui.serve_keys()
+                if ui.save_pending:
+                    ui.save_frame()
+            if ui is None or not ui.paused:
+                raw, _ = request_frame(midi_in, midi_out, request, args.timeout,
+                                       wait_cb=ui.wait if ui else None)
+                if raw is None:
+                    misses += 1
+                else:
+                    # decode every poll -- cheap, and the pixels are what decides
+                    # whether this frame is new (the SysEx header never repeats)
+                    w, h, px = parse_or_die(raw, instrument)
+                    now_ms = (time.monotonic() - t0) * 1000.0
+                    if log.add(raw, px, now_ms):
+                        if ui is not None:
+                            ui.last_raw = raw
+                            picture = ui.render(unpack(px, w, h, ui.flip))
+                        else:
+                            picture = render(unpack(px, w, h, args.flip), args)
             if drawing:
                 elapsed = max(1e-6, time.monotonic() - t0)
                 status = (f"{log.polled / elapsed:4.1f} fps  "
                           f"{log.polled} polled  {len(log.frames)} kept  "
                           f"{elapsed:5.1f}s"
                           + (f"  {misses} timed out" if misses else "")
-                          + "   Ctrl+C to stop")
+                          + f"  {ui.mode}"
+                          + (f"  inverted" if ui.invert else "")
+                          + (f"  flipped" if ui.flip else "")
+                          + (f"  paused" if ui.paused else "")
+                          + "   q quit  m mode  i invert  f flip  p pause  "
+                            "s save  h help")
                 body = "\n".join(l + "\033[K" for l in picture.split("\n"))
-                sys.stdout.write("\033[H" + body + "\033[K\n\n" + status + "\033[K")
+                tail = [status]
+                if ui.help:
+                    tail = [status, ""] + list(KEYS_HELP)
+                if ui.notice:
+                    tail = tail + [ui.notice]
+                sys.stdout.write("\033[H" + body
+                                 + "\n\n" + "\n".join(tail)
+                                 + "\033[K\033[J")
                 sys.stdout.flush()
             rest = interval - (time.monotonic() - tick)
             if rest > 0:
@@ -1290,6 +1493,7 @@ def stream(instrument, args, recorder=None):
         if drawing:
             sys.stdout.write("\033[?25h\033[?1049l")
             sys.stdout.flush()
+        _restore_stdin(termios_old)
         midi_in.close_port()
         midi_out.close_port()
         del midi_in, midi_out
@@ -1542,6 +1746,7 @@ def die(msg):
 
 
 def main():
+    _enable_ansi_on_windows()
     ap = argparse.ArgumentParser(
         prog="screendump",
         description=__doc__,
