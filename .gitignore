@@ -1,0 +1,16 @@
+# Local agent-harness instruction files, each a link to CONTEXT.md if one exists.
+CLAUDE.md
+GEMINI.md
+AGENTS.md
+CONTEXT.md
+
+# Local mount of the private shared-memory repo. Never staged, never shipped.
+/.shared_memory
+
+*.mid
+*.gif
+*.wav
+*.mp4
+
+.DS_Store
+__pycache__/
