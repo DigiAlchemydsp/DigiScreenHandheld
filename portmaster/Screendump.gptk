@@ -1,0 +1,15 @@
+# Screendump control layer (gptokeyb) - gamepad to TUI keys
+# A=save frame  B=quit stream (back to pairing)  X=render mode  Y=invert
+# L1=help  R1=flip  L2/R2=pause  Start=pause  Guide=help
+# Fully exit the port with the EmulationStation hotkey.
+
+a = s
+b = q
+x = m
+y = i
+l1 = h
+r1 = f
+l2 = p
+r2 = p
+start = space
+guide = h

@@ -1,184 +1,154 @@
-# screendump
+# Screendump — PortMaster port for Knulli / Batocera (aarch64)
 
-See your Elektron instrument's screen in the terminal, over MIDI, using the
-instrument's own screenshot command. **Nothing on the instrument is modified.**
+> **Portmaster console build of [screendump](https://github.com/DigiAlchemydsp/screendumpTUI)** —
+> see your Elektron instrument's screen on the handheld, over MIDI, using the
+> instrument's own screenshot command. **Nothing on the machine is modified.**
+>
+> This branch adds the Anbernic H700 / Knulli **PortMaster packaging**, the
+> vaixterm terminal + gptokeyb **control layer**, and the **pairing loop** that
+> cycles Digitone / Digitakt / Syntakt and streams the first machine that answers.
 
-One file, one dependency (`python-rtmidi`), macOS/Linux/Windows.
+Connect an Elektron **Digitone / Digitakt / Syntakt** by USB-MIDI
+(`GLOBAL → USB CFG → USB MIDI` on the machine), launch the port, and the
+handheld mirrors the machine's screen at its own refresh rate (~30 fps).
+
+## Requirements
+
+| Dependency | Source | Notes |
+|---|---|---|
+| `python3` | ships with Knulli | runs the screendump tool |
+| `python-rtmidi` | **bundled** in the port (`Screendump/py/`) | vendored at build time |
+| `vaixterm` terminal emulator | ships with Knulli (`/usr/bin/vaixterm`) | also called VAxTerm |
+| PortMaster control layer (`control.txt`, `gptokeyb`) | ships with Knulli at `/userdata/system/.local/share/PortMaster/` | gamepad → keys |
+| Elektron machine + USB-MIDI | — | nothing else |
 
 ## Install
 
-```
-pip install python-rtmidi
-```
-
-`screendump` is a single file: put it on your `PATH` and make it executable, or
-run it from the repo.
-
-| for | install |
-|---|---|
-| the screen, recording, GIF | `pip install python-rtmidi` |
-| `--save-audio` | `pip install sounddevice` |
-| `--save-video` | ffmpeg — `brew install ffmpeg`, `apt install ffmpeg`, `winget install ffmpeg` |
-
-## Find your MIDI ports
+Final layout on the device:
 
 ```
-$ screendump --list-midi
-MIDI inputs (instrument -> computer):
-  [0] Elektron Digitakt
-MIDI outputs (computer -> instrument):
-  [0] Elektron Digitakt
+/userdata/roms/ports/
+├── Screendump.sh          (executable launcher, shown in the Ports menu)
+└── Screendump/
+    ├── port.json
+    ├── gameinfo.xml
+    ├── Screendump.gptk    (gamepad → TUI keys)
+    ├── pair.sh            (the pairing loop, run inside vaixterm)
+    ├── screendump         (the tool, single file)
+    ├── py/                (vendored python-rtmidi, aarch64)
+    └── userdata/          (created at first run)
 ```
 
-## Live view (the TUI)
-
-```
-$ screendump -x --framerate 30 --midi-in 0 --midi-out 0 --instrument dt
-```
-
-Streams the screen into a full-screen TUI until you quit. Your terminal is left
-exactly as it was — the live view never enters the scrollback.
-
-| key | |
-|---|---|
-| `q` / `esc` | quit (Ctrl+C works too) |
-| `m` / `tab` | render mode: braille → blocks → ascii |
-| `i` | invert lit and unlit |
-| `f` | flip vertically |
-| `p` / `space` | pause / resume the stream |
-| `s` | save the current frame as a `.syx` |
-| `h` / `?` | show this help |
-
-The rate is capped at 30, the instrument's own refresh. Over DIN expect about 3.
-
-## Single screenshot
-
-```
-$ screendump -x --midi-in 0 --midi-out 0 --instrument dt --blocks
+```bash
+# from any machine with scp/ssh (Linux, macOS, WSL, Git Bash):
+bash scripts/install-ssh.sh root@<knulli-ip>
+# then restart EmulationStation (or reboot) and launch Screendump from the Ports menu.
 ```
 
-`-x` is the only mode that talks to hardware. Output goes to stdout, so it pipes
-and tees like anything else.
+Or by SD card: unzip `release/Screendump.zip` into `userdata/roms/ports/`
+(`chmod +x Screendump.sh Screendump/pair.sh` if the port won't launch).
 
-Ports can be given three ways: an index from `--list-midi`, an instrument short
-form (`--midi-in dt`), or any fragment of the port name (`--midi-in MOTU`). A
-fragment has to identify exactly one port.
+## How it works
 
-## Keep the data, render differently later
+The launcher (`Screendump.sh`) is a standard PortMaster shim: sources
+`control.txt`, disables USB autosuspend (Knulli's 2 s idle timeout would
+otherwise drop the USB-MIDI connection), and starts **vaixterm** with the
+pairing loop. It also bundles `python-rtmidi` so nothing has to be installed
+on the device.
+
+`pair.sh` is the small loop that runs inside the terminal:
+
+1. Probe each instrument in turn — `dn`, `dt`, `sy` — with a one-second
+   single-shot capture (`screendump -x --timeout 1 --instrument <x>`).
+2. The **first machine that answers** wins; launch the live stream
+   (`screendump -x --framerate 30 --instrument <x>`).
+3. When the stream ends (press `q`/B), loop back and pair again — so you can
+   swap machines or unplug/replug without relaunching the port.
+4. If nothing answers, it keeps retrying until a machine appears.
+
+Because the Digitakt and Digitone answer the screenshot RPC on the **same id**,
+either name finds either machine — the order just picks a label. The Syntakt
+entry joins the cycle automatically once it is implemented in screendump.
+
+## Controls (gamepad → TUI keys)
+
+| Gamepad | Key | Screendump action |
+|---|---|---|
+| A | `s` | save the current frame as a `.syx` |
+| B | `q` | quit the stream (back to the pairing loop) |
+| X | `m` | render mode: braille → blocks → ascii |
+| Y | `i` | invert lit and unlit |
+| L1 | `h` | show the key help |
+| R1 | `f` | flip vertically |
+| L2 / R2 | `p` / `space` | pause / resume the stream |
+| Start | `space` | pause / resume |
+| Guide | `h` | show the key help |
+
+- **Fully exit the port** with the EmulationStation hotkey.
+- Want different bindings? Edit `Screendump/Screendump.gptk` on the device
+  (flat format — the device's gptokeyb v1 rejects a `[controls]` section).
+
+## Building from source
+
+`release/Screendump.zip` is built with `scripts/build-port.sh` — run it **on
+the device** (aarch64 Linux, where `pip` resolves the right `python-rtmidi`
+wheel for the device's Python), or on any host with Python 3:
+
+```bash
+# on the device:
+ssh root@<knulli-ip>
+cd /tmp
+bash scripts/build-port.sh        # produces release/Screendump.zip
+```
+
+What it does:
+
+1. Vendors `python-rtmidi` for aarch64 into `py/` (native `pip --target` on
+   the device; a `manylinux2014_aarch64` wheel download on a host — set
+   `RTPYTHON_VERSION` to the device's `cpXY` if the host Python differs).
+2. Copies `screendump` + the `portmaster/` metadata into the port dir.
+3. Assembles and zips `Screendump.sh` + `Screendump/` into `release/Screendump.zip`.
+
+Known build quirks:
+
+- `/userdata` is exFAT — no symlinks; the build never creates any.
+- `vaixterm -e` execs a **single path**, no shell → `pair.sh` is that path.
+- gptokeyb v1 rejects a `[controls]` header → flat `.gptk` format.
+- The `python-rtmidi` wheel dlopens its **bundled `libjack`** from
+  `py/python_rtmidi/` — the launcher adds that dir to `LD_LIBRARY_PATH`.
+
+## Repository layout
 
 ```
-$ screendump -x --save-syx shot.syx
-$ screendump --from-file shot.syx --blocks
-$ screendump --from-file shot.syx --ascii --invert
+screendump-portmaster/
+├── README.md               (this file)
+├── LICENSE                 (MIT)
+├── screendump              the tool (single file, from the screendump repo)
+├── portmaster/             small versioned source files used by build-port.sh
+│   ├── Screendump.sh       PortMaster launcher (PORTMASTER header)
+│   ├── pair.sh             the pairing loop (vaixterm -e target)
+│   ├── Screendump.gptk     gamepad → keys
+│   ├── port.json           PortMaster metadata
+│   └── gameinfo.xml        EmulationStation metadata
+├── scripts/
+│   ├── build-port.sh       full build → release/Screendump.zip
+│   ├── install-ssh.sh      SSH install helper
+│   └── uninstall-ssh.sh    SSH remove helper
+└── release/                built Screendump.zip (gitignored)
 ```
 
-## Record while you watch
+> `python-rtmidi` is several MB — it is **not tracked in git**. Publish the
+> built zip as a GitHub Release; `scripts/build-port.sh` reproduces it.
 
-```
-$ screendump -x --framerate 15 --save-mid cap.mid --save-gif out.gif
-```
+## Troubleshooting
 
-Only frames that actually **changed** are kept, each with the length of time it
-was on screen. Add `-H` / `--hide` to record without drawing anything.
-
-```
-$ screendump --from-file cap.mid --save-gif out.gif
-```
-
-## Sound and video
-
-```
-$ screendump -x --framerate 30 --audio-in dt \
-             --save-mid cap.mid --save-audio cap.wav
-$ screendump --from-file cap.mid --from-audio cap.wav --save-video out.mp4
-```
-
-Or both halves in one go:
-
-```
-$ screendump -x --framerate 30 --audio-in dt --save-video out.mp4
-```
-
-## Set it once per session
-
-```
-$ export SCREENDUMP_MIDI_IN=0             # [0] from --list-midi
-$ export SCREENDUMP_MIDI_OUT=0            # [0] from --list-midi
-$ export SCREENDUMP_AUDIO_IN=dt           # short form, or an index
-$ export SCREENDUMP_INSTRUMENT=Digitakt   # or DT, or dt
-
-$ screendump -x
-```
-
-An option always beats the environment. PowerShell: `$env:SCREENDUMP_MIDI_IN = "0"`.
-cmd.exe: `set SCREENDUMP_MIDI_IN=0`.
-
-## Options
-
-| | |
-|---|---|
-| `-x`, `--external` | capture from the instrument |
-| `--list-midi` | list MIDI ports |
-| `--list-audio` | list audio inputs |
-| `--midi-in`, `--midi-out` | port index or name fragment |
-| `--audio-in` | audio input index or name fragment |
-| `--instrument` | which machine — required, no default |
-| `--blocks` | half-block rendering, no row gaps |
-| `--ascii` | full resolution, one character per pixel |
-| `--invert`, `--flip` | swap lit/unlit, flip vertically |
-| `--framerate N` | with `-x`, stream until you quit (capped at 30); also the frame rate of a video |
-| `-H`, `--hide` | while streaming, don't draw to the terminal |
-| `--save-syx PATH` | also save the frame |
-| `--save-raw PATH` | also save just the pixel bytes |
-| `--save-mid PATH` | also save the recording, with timing, as a MIDI file |
-| `--save-gif PATH` | also save an animated GIF |
-| `--save-audio PATH` | also record the instrument's audio to a stereo WAV |
-| `--save-video PATH` | write an mp4 of picture and sound together |
-| `--upscale N` | enlarge each pixel to N × N in a GIF or video (default 4) |
-| `--from-file PATH` | render a saved `.syx`, `.mid` or raw dump instead |
-| `--from-audio PATH` | the `.wav` to pair with `--from-file` for a video |
-| `--bench N` | measure the frame rate over N captures |
-| `--self-test` | check the tool without an instrument |
-| `--timeout` | reply timeout in seconds, default 2 |
-
-Nothing is written to disk unless you ask.
-
-## If braille looks gappy
-
-Braille shows seams between rows in many terminals. **Use `--blocks`** — it fills
-the cell edge to edge and always looks solid. Iosevka and JuliaMono draw tight
-braille; SF Mono and Menlo are heavily padded.
-
-## Instruments
-
-`--instrument` is spelled exactly — the short form, its lowercase form, or the
-full name. `digitakt` and `DigiTAKT` are rejected on purpose: the instrument
-decides what goes on the wire, so a typo should be an error rather than a guess.
-
-**Implemented**
-
-| | |
-|---|---|
-| `DT` | `dt` | Digitakt |
-| `DN` | `dn` | Digitone |
-
-**Known, not implemented** (no instrument id is known, so there is no request to send)
-
-| | |
-|---|---|
-| `DTII` | `dtii` | `"Digitakt II"` |
-| `DNII` | `dnii` | `"Digitone II"` |
-| `ST` | `st` | `Syntakt` |
-| `AR` | `ar` | `"Analog Rytm"` |
-| `A4` | `a4` | `"Analog Four"` |
-| `AH` | `ah` | `"Analog Heat"` |
-| `M:S` | `m:s` | `Model:Samples` |
-| `M:C` | `m:c` | `Model:Cycles` |
-| `OT` | `ot` | `Octatrack` |
-| `MD` | `md` | `Machinedrum` |
-
-Names containing a space need quoting: `--instrument "Digitakt II"`. The short
-forms never do.
-
-An instrument moves to the implemented list once a screen has been captured from
-it and read. Adding one is a few lines — see the notes at the top of the script.
+- **Port doesn't appear in the menu**: EmulationStation rescans at startup —
+  restart ES (or reboot). Check the layout matches the tree above.
+- **Blank screen on launch**: check `Screendump/log.txt` on the device;
+  over SSH run `python3 -c "import rtmidi"` from `Screendump/` to confirm the
+  bundled wheel loads.
+- **Keeps saying "no machine found"**: confirm the Elektron box is in
+  `GLOBAL → USB CFG → USB MIDI` (not Overbridge), and that it enumerates:
+  `python3 screendump --list-midi`.
+- **Gamepad does nothing**: confirm gptokeyb started (`[GPTK]` in `log.txt`);
+  Knulli's hotkey should still exit the port.

@@ -1268,6 +1268,8 @@ class LiveUI:
         self.notice = ""
         self.last_raw = None
         self.save_pending = False
+        self.last_body = ""
+        self.last_status_t = 0.0
 
     def render(self, grid):
         if self.mode == "ascii":
@@ -1465,7 +1467,8 @@ def stream(instrument, args, recorder=None):
                         else:
                             picture = render(unpack(px, w, h, args.flip), args)
             if drawing:
-                elapsed = max(1e-6, time.monotonic() - t0)
+                now = time.monotonic()
+                elapsed = max(1e-6, now - t0)
                 status = (f"{log.polled / elapsed:4.1f} fps  "
                           f"{log.polled} polled  {len(log.frames)} kept  "
                           f"{elapsed:5.1f}s"
@@ -1482,9 +1485,24 @@ def stream(instrument, args, recorder=None):
                     tail = [status, ""] + list(KEYS_HELP)
                 if ui.notice:
                     tail = tail + [ui.notice]
-                sys.stdout.write("\033[H" + body
-                                 + "\n\n" + "\n".join(tail)
-                                 + "\033[K\033[J")
+                if body != ui.last_body:
+                    # ⭐ A NEW picture is a FULL redraw. Redrawing the same
+                    # picture thirty times a second makes a static screen
+                    # shimmer on terminals that re-rasterize every frame
+                    # (vaixterm --force-full-render), so an unchanged screen
+                    # only gets its status line refreshed at ~2 Hz below.
+                    ui.last_body = body
+                    ui.last_status_t = now
+                    sys.stdout.write("\033[H" + body
+                                     + "\n\n" + "\n".join(tail)
+                                     + "\033[K\033[J")
+                elif now - ui.last_status_t >= 0.5:
+                    # redraw only the tail, parked at its own row
+                    ui.last_status_t = now
+                    rows = len(picture.split("\n"))
+                    sys.stdout.write(f"\033[{rows + 2};1H"
+                                     + "\n".join(tail)
+                                     + "\033[K\033[J")
                 sys.stdout.flush()
             rest = interval - (time.monotonic() - tick)
             if rest > 0:

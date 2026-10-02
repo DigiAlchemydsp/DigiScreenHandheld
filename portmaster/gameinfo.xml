@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<gameList>
+  <game>
+    <path>./Screendump.sh</path>
+    <name>Screendump</name>
+    <desc>See your Elektron instrument's screen on the handheld, over MIDI, using the instrument's own screenshot command. Nothing on the machine is modified. Pairing loop cycles Digitone / Digitakt / Syntakt and streams the first machine that answers, at the instrument's own refresh rate.\n\nRuns inside the vaixterm terminal emulator with a full gptokeyb gamepad control layer: A=save frame, B=quit stream back to pairing, X=render mode (braille/blocks/ascii), Y=invert, L1=help, R1=flip, L2/R2=pause. Requires an Elektron Digitone / Digitakt / Syntakt connected by USB-MIDI. Fully exit with the EmulationStation hotkey.</desc>
+    <releasedate>20261001T000000</releasedate>
+    <developer>DigiAlchemydsp</developer>
+    <publisher>DigiAlchemydsp</publisher>
+    <genre>utility</genre>
+  </game>
+</gameList>

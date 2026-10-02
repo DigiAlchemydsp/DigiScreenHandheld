@@ -12,5 +12,8 @@ CONTEXT.md
 *.wav
 *.mp4
 
+# portmaster build output
+/release/
+
 .DS_Store
 __pycache__/
