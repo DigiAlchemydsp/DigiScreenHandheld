@@ -1,9 +1,10 @@
 #!/bin/bash
-# PORTMASTER: Screendump.zip, Screendump.sh
-# Elektron screendump TUI port for Knulli (Anbernic H700).
-# Runs inside the vaixterm terminal emulator; gamepad mapped by Screendump.gptk.
-# pair.sh cycles the Elektron machines, streams the first that answers, and
-# re-pairs whenever the stream ends.
+# PORTMASTER: DigiScreen.zip, DigiScreen.sh
+# DigiScreen -- mirror an Elektron instrument's screen on the handheld.
+# A PortMaster port of the screendump tool (Jakob Bak, MIT) for Knulli
+# (Anbernic H700). Runs inside the vaixterm terminal emulator; gamepad
+# mapped by DigiScreen.gptk. pair.sh cycles the Elektron machines, streams
+# the first that answers, and re-pairs whenever the stream ends.
 
 XDG_DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
 
@@ -23,7 +24,7 @@ source $controlfolder/control.txt
 [ -f "${controlfolder}/mod_${CFW_NAME}.txt" ] && source "${controlfolder}/mod_${CFW_NAME}.txt"
 get_controls
 
-GAMEDIR="/$directory/ports/Screendump"
+GAMEDIR="/$directory/ports/DigiScreen"
 cd "$GAMEDIR"
 > "$GAMEDIR/log.txt" && exec > >(tee "$GAMEDIR/log.txt") 2>&1
 
@@ -52,8 +53,8 @@ echo 0 > /sys/module/usbcore/parameters/autosuspend 2>/dev/null
 # the rtmidi .so dlopens the wheel-bundled libjack from python_rtmidi/
 [ -d "$GAMEDIR/py/python_rtmidi" ] && export LD_LIBRARY_PATH="$GAMEDIR/py/python_rtmidi${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
-# gamepad -> TUI keys (see Screendump.gptk)
-$GPTOKEYB "vaixterm" -c "Screendump.gptk" &
+# gamepad -> TUI keys (see DigiScreen.gptk)
+$GPTOKEYB "vaixterm" -c "DigiScreen.gptk" &
 pm_platform_helper "vaixterm"
 
 # Size the terminal so the 128-column blocks screen fills the display width

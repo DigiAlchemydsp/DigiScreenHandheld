@@ -1,10 +1,10 @@
 #!/bin/sh
-# Screendump pairing loop -- invoked by vaixterm -e (which execs a single path).
+# DigiScreen pairing loop -- invoked by vaixterm -e (which execs a single path).
 #
 # Cycles the Elektron instruments, streams the first one that answers, and
 # re-pairs whenever the stream ends -- so you can swap the box (or unplug it
 # and plug in another) without relaunching the port.
-GAMEDIR="/userdata/roms/ports/Screendump"
+GAMEDIR="/userdata/roms/ports/DigiScreen"
 export HOME="$GAMEDIR/userdata"
 mkdir -p "$HOME"
 export TERM=xterm-256color
@@ -24,7 +24,7 @@ probe() {
   python3 "$SD" -x --timeout 1 --instrument "$1" >/dev/null 2>&1
 }
 
-printf '\n  SCREENDUMP -- Elektron screen stream\n'
+printf '\n  DIGISCREEN -- Elektron screen stream\n'
 printf '  q quits the stream back to pairing; the EmulationStation hotkey quits the port\n'
 while true; do
   FOUND=""

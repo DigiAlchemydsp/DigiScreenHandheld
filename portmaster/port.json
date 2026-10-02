@@ -1,17 +1,17 @@
 {
     "version": 4,
-    "name": "Screendump.zip",
+    "name": "DigiScreen.zip",
     "items": [
-        "Screendump/",
-        "Screendump.sh"
+        "DigiScreen/",
+        "DigiScreen.sh"
     ],
     "items_opt": null,
     "attr": {
-        "title": "Screendump",
+        "title": "DigiScreen",
         "porter": [
             "DigiAlchemydsp"
         ],
-        "desc": "See your Elektron instrument's screen on the handheld, over MIDI, using the instrument's own screenshot command. Nothing on the machine is modified. Pairing loop cycles Digitone / Digitakt / Syntakt and streams the first machine that answers, at the instrument's own refresh rate.\n\nRuns inside the vaixterm terminal emulator with a full gptokeyb gamepad control layer: A=save frame, B=quit stream back to pairing, X=render mode (braille/blocks/ascii), Y=invert, L1=help, R1=flip, L2/R2=pause. Requires an Elektron Digitone / Digitakt / Syntakt connected by USB-MIDI. Fully exit with the EmulationStation hotkey.",
+        "desc": "See your Elektron instrument's screen on the handheld, over MIDI, using the instrument's own screenshot command. Nothing on the machine is modified. A PortMaster port of the screendump tool (Jakob Bak, MIT). Pairing loop cycles Digitone / Digitakt / Syntakt and streams the first machine that answers, at the instrument's own refresh rate.\n\nRuns inside the vaixterm terminal emulator with a full gptokeyb gamepad control layer: A=save frame, B=quit stream back to pairing, X=render mode (braille/blocks/ascii), Y=invert, L1=help, R1=flip, L2/R2=pause. Requires an Elektron Digitone / Digitakt / Syntakt connected by USB-MIDI. Fully exit with the EmulationStation hotkey.",
         "inst": "Requires a USB-MIDI connection to an Elektron Digitone / Digitakt / Syntakt (GLOBAL > USB CFG > USB MIDI on the machine). python-rtmidi is bundled for aarch64 by the build script. Swap machines at any time -- the port re-pairs automatically when the stream ends.",
         "genres": [
             "utility",

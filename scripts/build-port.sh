@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds Screendump.zip - a PortMaster port of screendump (Elektron screen
+# Builds DigiScreen.zip - a PortMaster port of screendump (Elektron screen
 # viewer TUI) for Knulli / Batocera aarch64 handhelds.
 #
 # Best run ON the device (aarch64 Linux): pip then resolves the python-rtmidi
@@ -8,18 +8,18 @@
 #   ssh root@<knulli-ip>
 #   cd /tmp && bash build-port.sh       # or scp the repo's scripts over first
 #
-# Produces: release/Screendump.zip
+# Produces: release/DigiScreen.zip
 #
 # The zip bundles:
-#   Screendump.sh        PortMaster launcher (PORTMASTER header)
-#   Screendump/          port dir: metadata, the screendump script, pair.sh,
+#   DigiScreen.sh        PortMaster launcher (PORTMASTER header)
+#   DigiScreen/          port dir: metadata, the screendump script, pair.sh,
 #                        the gptokeyb control layer, and vendored
 #                        python-rtmidi (aarch64).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORK="${ROOT}/release/work"
-OUT="${ROOT}/release/Screendump.zip"
+OUT="${ROOT}/release/DigiScreen.zip"
 
 log()  { printf '\n[build] %s\n' "$*"; }
 die()  { printf '\n[build] ERROR: %s\n' "$*" >&2; exit 1; }
@@ -82,7 +82,7 @@ log "staging in ${WORK}"
 rm -rf "$WORK"
 mkdir -p "$WORK" "$ROOT/release"
 
-PORTDIR="$WORK/Screendump"
+PORTDIR="$WORK/DigiScreen"
 mkdir -p "$PORTDIR" "$PORTDIR/userdata"
 
 vendor_rtmidi "$PORTDIR/py"
@@ -92,18 +92,18 @@ log "copying screendump + portmaster metadata"
 cp "$ROOT/screendump"                      "$PORTDIR/screendump"
 cp "$ROOT/portmaster/port.json"            "$PORTDIR/port.json"
 cp "$ROOT/portmaster/gameinfo.xml"         "$PORTDIR/gameinfo.xml"
-cp "$ROOT/portmaster/Screendump.gptk"      "$PORTDIR/Screendump.gptk"
+cp "$ROOT/portmaster/DigiScreen.gptk"      "$PORTDIR/DigiScreen.gptk"
 cp "$ROOT/portmaster/pair.sh"              "$PORTDIR/pair.sh"
 chmod +x "$PORTDIR/pair.sh"
 
-# --- zip (PortMaster layout: Screendump.sh at root + Screendump/ dir) --------
-log "packing release/Screendump.zip"
+# --- zip (PortMaster layout: DigiScreen.sh at root + DigiScreen/ dir) --------
+log "packing release/DigiScreen.zip"
 mkdir -p "$WORK/ziproot"
-cp "$ROOT/portmaster/Screendump.sh" "$WORK/ziproot/Screendump.sh"
-cp -r "$PORTDIR" "$WORK/ziproot/Screendump"
+cp "$ROOT/portmaster/DigiScreen.sh" "$WORK/ziproot/DigiScreen.sh"
+cp -r "$PORTDIR" "$WORK/ziproot/DigiScreen"
 zipdir "$OUT" "$WORK/ziproot"
 rm -rf "$WORK"
 
 log "done: ${OUT} ($(du -h "$OUT" | cut -f1))"
 log "install: bash scripts/install-ssh.sh root@<knulli-ip>"
-log "or: scp ${OUT} root@<knulli-ip>:/userdata/ && ssh root@<knulli-ip> 'cd /userdata && unzip -o Screendump.zip -d /userdata/roms/ports/ && chmod +x /userdata/roms/ports/Screendump.sh && rm Screendump.zip'"
+log "or: scp ${OUT} root@<knulli-ip>:/userdata/ && ssh root@<knulli-ip> 'cd /userdata && unzip -o DigiScreen.zip -d /userdata/roms/ports/ && chmod +x /userdata/roms/ports/DigiScreen.sh && rm DigiScreen.zip'"
