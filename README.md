@@ -1,5 +1,9 @@
 # DigiScreen — mirror your Elektron screen on a handheld
 
+> My hope is that DigiScreen makes these instruments a little more accessible —
+> for learning, for comfort, and for anyone with visual challenges — breathing
+> new life into old machines and letting more people enjoy them.
+
 > **DigiScreen** is a PortMaster port of
 > [screendump](https://github.com/DigiAlchemydsp/screendumpTUI) for Knulli /
 > Batocera aarch64 handhelds (Tested on Anbernic RG40XX-V / H700). It mirrors an Elektron
