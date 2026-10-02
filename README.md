@@ -2,7 +2,7 @@
 
 > **DigiScreen** is a PortMaster port of
 > [screendump](https://github.com/DigiAlchemydsp/screendumpTUI) for Knulli /
-> Batocera aarch64 handhelds (Anbernic RG40XX-V / H700). It mirrors an Elektron
+> Batocera aarch64 handhelds (Tested on Anbernic RG40XX-V / H700). It mirrors an Elektron
 > **Digitone / Digitakt / Syntakt** screen onto the handheld's display, over
 > MIDI, using the instrument's own screenshot command. **Nothing on the machine
 > is modified.**
