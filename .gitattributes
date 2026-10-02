@@ -1,2 +1,13 @@
-# Auto detect text files and perform LF normalization
+# Shell scripts and the tool must stay LF: the device's /bin/sh and /bin/bash
+# choke on CRLF. Windows git would otherwise check these out with CRLF.
 * text=auto
+*.sh text eol=lf
+*.py text eol=lf
+screendump text eol=lf
+*.gptk text eol=lf
+*.json text eol=lf
+*.xml text eol=lf
+*.md text eol=lf
+LICENSE text eol=lf
+.gitattributes text eol=lf
+.gitignore text eol=lf

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<gameList>
+  <game>
+    <path>./DigiScreen-Stream.sh</path>
+    <name>DigiScreen-Stream</name>
+    <desc>DigiScreen plus the FatmaVision screen stream: mirrors an Elektron Digitone / Digitakt / Syntakt screen on the handheld while streaming the handheld's display (fb0 -&gt; H.264 tcp:5555) so the FatmaVision app can watch remotely. The stream starts first, then DigiScreen; the stream stops when DigiScreen exits.\n\nRuns inside the vaixterm terminal emulator with a full gptokeyb gamepad control layer. Requires the DigiScreen port and an Elektron Digitone / Digitakt / Syntakt connected by USB-MIDI. Exit with the EmulationStation hotkey.</desc>
+    <releasedate>20261002T000000</releasedate>
+    <developer>DigiAlchemydsp</developer>
+    <publisher>DigiAlchemydsp</publisher>
+    <genre>utility</genre>
+  </game>
+</gameList>

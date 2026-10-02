@@ -16,6 +16,23 @@ Connect an Elektron **Digitone / Digitakt / Syntakt** by USB-MIDI
 (`GLOBAL → USB CFG → USB MIDI` on the machine), launch DigiScreen, and the
 handheld mirrors the machine's screen at its own refresh rate (~30 fps).
 
+## DigiScreen-Stream — mirror + remote view
+
+**DigiScreen-Stream** combines DigiScreen with the **FatmaVision** screen
+stream: it starts the device's screen stream first (fb0 → H.264 over
+`tcp:5555`, one client), then launches DigiScreen, and stops the stream when
+DigiScreen exits. Someone on the **FatmaVision app** can then watch the
+Elektron screen mirror live from anywhere on the network.
+
+```
+DigiScreen-Stream.sh     launches the stream, then DigiScreen
+```
+
+Install the **DigiScreen** port first — DigiScreen-Stream orchestrates it and
+reuses its files. `stream.sh` is bundled from
+[FatmaVision](https://github.com/DigiAlchemydsp/FatmaVision) and needs `ffmpeg`
+(shipped with Knulli).
+
 ## Requirements
 
 | Dependency | Source | Notes |

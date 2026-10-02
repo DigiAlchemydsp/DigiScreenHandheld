@@ -1,0 +1,37 @@
+{
+    "version": 4,
+    "name": "DigiScreen-Stream.zip",
+    "items": [
+        "DigiScreen-Stream/",
+        "DigiScreen-Stream.sh"
+    ],
+    "items_opt": null,
+    "attr": {
+        "title": "DigiScreen-Stream",
+        "porter": [
+            "DigiAlchemydsp"
+        ],
+        "desc": "DigiScreen plus the FatmaVision screen stream: mirrors an Elektron Digitone / Digitakt / Syntakt screen on the handheld while streaming the handheld's display (fb0 -> H.264 tcp:5555) so the FatmaVision app can watch remotely. The stream starts first, then DigiScreen; the stream stops when DigiScreen exits.\n\nRuns inside the vaixterm terminal emulator with a full gptokeyb gamepad control layer: A=save frame, B=quit stream back to pairing, X=render mode, Y=invert, L1=help, R1=flip, L2/R2=pause. Requires the DigiScreen port and an Elektron Digitone / Digitakt / Syntakt connected by USB-MIDI.",
+        "inst": "Install the DigiScreen port first, then this one. Connect the Elektron box by USB-MIDI (GLOBAL > USB CFG > USB MIDI). The stream serves one client on TCP 5555 -- open it in the FatmaVision app. Exit with the EmulationStation hotkey; the stream stops with DigiScreen.",
+        "genres": [
+            "utility",
+            "music"
+        ],
+        "image": {
+            "screenshot": null,
+            "covers": [],
+            "thumbnail": null,
+            "video": null
+        },
+        "rtr": true,
+        "runtime": null,
+        "reqs": [],
+        "arch": [
+            "aarch64"
+        ],
+        "desc_md": null,
+        "inst_md": null,
+        "exp": false,
+        "min_glibc": ""
+    }
+}
